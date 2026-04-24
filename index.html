@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SRM Tree Visualizer</title>
+  <style>
+    :root {
+      --bg: #060b14;
+      --surface: #0d1b2a;
+      --surface2: #112240;
+      --border: #1e3a5f;
+      --accent: #00d4ff;
+      --accent2: #7c3aed;
+      --green: #00e676;
+      --red: #ff5252;
+      --yellow: #ffc107;
+      --text: #e2eaf4;
+      --muted: #64748b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: linear-gradient(135deg, #0d1b2a 0%, #112240 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 24px 40px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .logo { font-size: 2rem; }
+    header h1 { font-size: 1.6rem; color: var(--accent); font-weight: 700; }
+    header p { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+    .badge {
+      margin-left: auto;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: right;
+    }
+    .badge strong { color: var(--accent); display: block; font-size: 0.9rem; }
+
+    /* ── LAYOUT ── */
+    main { max-width: 1000px; margin: 0 auto; padding: 36px 20px; }
+
+    /* ── INPUT CARD ── */
+    .input-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 28px;
+    }
+    .input-card label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--accent);
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    textarea {
+      width: 100%;
+      height: 110px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 0.95rem;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      resize: vertical;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    textarea:focus { border-color: var(--accent); }
+    .hint { font-size: 0.78rem; color: var(--muted); margin-top: 8px; }
+
+    .btn-row { display: flex; gap: 12px; margin-top: 16px; }
+
+    button {
+      padding: 12px 28px;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-submit {
+      background: linear-gradient(135deg, var(--accent), #0099cc);
+      color: #000;
+      flex: 1;
+    }
+    .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,212,255,0.3); }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-clear {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-clear:hover { color: var(--text); border-color: var(--accent); }
+
+    /* ── ERROR ── */
+    .error-box {
+      background: rgba(255,82,82,0.1);
+      border: 1px solid var(--red);
+      color: var(--red);
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-top: 14px;
+      display: none;
+    }
+
+    /* ── LOADING ── */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+      display: none;
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── RESULTS ── */
+    #results { display: none; }
+
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* Summary grid */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .summary-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+      text-align: center;
+    }
+    .summary-box .num {
+      font-size: 2.4rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .summary-box .lbl {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+    .summary-box.root-box .num { color: var(--green); }
+
+    /* Hierarchies */
+    .hierarchies-wrap { margin-bottom: 28px; }
+
+    .tree-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 14px;
+      transition: border-color 0.2s;
+    }
+    .tree-card:hover { border-color: var(--accent); }
+    .tree-card.cycle { border-left: 4px solid var(--red); }
+    .tree-card.normal { border-left: 4px solid var(--green); }
+
+    .tree-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .tree-header:hover { background: var(--surface2); }
+
+    .tree-root-tag {
+      font-size: 1.3rem;
+      font-weight: 800;
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      margin-right: 14px;
+      flex-shrink: 0;
+    }
+    .root-normal { background: rgba(0,230,118,0.15); color: var(--green); }
+    .root-cycle { background: rgba(255,82,82,0.15); color: var(--red); }
+
+    .tree-meta { flex: 1; }
+    .tree-meta h3 { font-size: 1rem; font-weight: 600; }
+    .tree-meta p { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+
+    .tree-badge {
+      font-size: 0.75rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .badge-tree { background: rgba(0,230,118,0.15); color: var(--green); }
+    .badge-cycle { background: rgba(255,82,82,0.15); color: var(--red); }
+    .badge-depth { background: rgba(0,212,255,0.1); color: var(--accent); margin-left: 8px; }
+
+    .tree-body {
+      border-top: 1px solid var(--border);
+      padding: 16px 20px;
+      display: none;
+    }
+    .tree-body.open { display: block; }
+
+    /* ASCII tree */
+    .ascii-tree {
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.85rem;
+      color: var(--accent);
+      line-height: 1.8;
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 8px;
+    }
+    .ascii-tree .node { color: #e2eaf4; }
+    .ascii-tree .branch { color: #1e3a5f; }
+
+    /* Raw JSON toggle */
+    .json-toggle {
+      margin-top: 10px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      cursor: pointer;
+      text-decoration: underline;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    .json-toggle:hover { color: var(--accent); }
+    pre.json-raw {
+      display: none;
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.78rem;
+      color: #94a3b8;
+      overflow-x: auto;
+      margin-top: 8px;
+    }
+    pre.json-raw.open { display: block; }
+
+    /* Tags row */
+    .tags-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .tag-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+    .tag-card h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 12px; }
+    .tag-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tag {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-family: monospace;
+      font-weight: 600;
+    }
+    .tag-invalid { background: rgba(255,82,82,0.1); color: var(--red); border: 1px solid rgba(255,82,82,0.3); }
+    .tag-dup { background: rgba(255,193,7,0.1); color: var(--yellow); border: 1px solid rgba(255,193,7,0.3); }
+    .tag-none { color: var(--muted); font-size: 0.85rem; }
+
+    /* Raw response */
+    .raw-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 28px;
+    }
+    .raw-card h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 12px; cursor: pointer; }
+    .raw-card h3:hover { color: var(--accent); }
+    pre.full-json {
+      display: none;
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 0.78rem;
+      color: #94a3b8;
+      overflow-x: auto;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    pre.full-json.open { display: block; }
+
+    @media (max-width: 600px) {
+      header { padding: 16px; flex-wrap: wrap; }
+      .badge { margin-left: 0; margin-top: 8px; }
+      .summary-grid { grid-template-columns: 1fr; }
+      .tags-section { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🌳</div>
+  <div>
+    <h1>SRM Tree Visualizer</h1>
+    <p>Full Stack Engineering Challenge — Round 1</p>
+  </div>
+  <div class="badge">
+    <strong>garv_2005</strong>
+    gb9171@srmist.edu.in · RA2311026010343
+  </div>
+</header>
+
+<main>
+
+  <!-- Input -->
+  <div class="input-card">
+    <label>Node Edges Input</label>
+    <textarea id="inputArea" placeholder="A->B, A->C, B->D, X->Y, Y->Z, Z->X, P->Q, G->H, G->H, G->I, hello, 1->2, A->"></textarea>
+    <div class="hint">Separate edges with commas or new lines. Example: <code>A->B, B->C, X->Y</code></div>
+    <div class="btn-row">
+      <button class="btn-submit" id="submitBtn" onclick="handleSubmit()">🚀 Analyze Hierarchy</button>
+      <button class="btn-clear" onclick="clearAll()">✕ Clear</button>
+    </div>
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    Processing nodes...
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+
+    <!-- Summary -->
+    <div class="section-label">Summary</div>
+    <div class="summary-grid">
+      <div class="summary-box">
+        <div class="num" id="sTrees">0</div>
+        <div class="lbl">Valid Trees</div>
+      </div>
+      <div class="summary-box">
+        <div class="num" id="sCycles" style="color:var(--red)">0</div>
+        <div class="lbl">Cyclic Groups</div>
+      </div>
+      <div class="summary-box root-box">
+        <div class="num" id="sRoot">—</div>
+        <div class="lbl">Largest Tree Root</div>
+      </div>
+    </div>
+
+    <!-- Hierarchies -->
+    <div class="section-label">Hierarchies</div>
+    <div class="hierarchies-wrap" id="hierarchiesWrap"></div>
+
+    <!-- Tags -->
+    <div class="tags-section">
+      <div class="tag-card">
+        <h3>⚠️ Invalid Entries</h3>
+        <div class="tag-wrap" id="invalidWrap"></div>
+      </div>
+      <div class="tag-card">
+        <h3>🔁 Duplicate Edges</h3>
+        <div class="tag-wrap" id="dupWrap"></div>
+      </div>
+    </div>
+
+    <!-- Raw JSON -->
+    <div class="raw-card">
+      <h3 onclick="toggleRaw()">📄 Full API Response <span style="color:var(--muted);font-weight:400;font-size:0.8rem">(click to toggle)</span></h3>
+      <pre class="full-json" id="fullJson"></pre>
+    </div>
+
+  </div>
+</main>
+
+<script>
+  // ✅ Change this to your Render URL after deploying
+  const API_URL = 'http://localhost:3000/bfhl';
+
+  async function handleSubmit() {
+    const raw = document.getElementById('inputArea').value.trim();
+    if (!raw) return showError('Please enter at least one edge.');
+
+    const data = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+
+    setLoading(true);
+    hideError();
+    document.getElementById('results').style.display = 'none';
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+
+      const json = await res.json();
+      renderResults(json);
+    } catch (e) {
+      showError(`❌ API Error: ${e.message}. Make sure your server is running.`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderResults(json) {
+    // Summary
+    document.getElementById('sTrees').textContent = json.summary.total_trees;
+    document.getElementById('sCycles').textContent = json.summary.total_cycles;
+    document.getElementById('sRoot').textContent = json.summary.largest_tree_root || '—';
+
+    // Hierarchies
+    const hWrap = document.getElementById('hierarchiesWrap');
+    hWrap.innerHTML = '';
+
+    json.hierarchies.forEach((h, i) => {
+      const isCycle = !!h.has_cycle;
+      const card = document.createElement('div');
+      card.className = `tree-card ${isCycle ? 'cycle' : 'normal'}`;
+
+      const depthBadge = !isCycle ? `<span class="tree-badge badge-depth">Depth: ${h.depth}</span>` : '';
+      const typeBadge = isCycle
+        ? `<span class="tree-badge badge-cycle">🔄 Cyclic</span>`
+        : `<span class="tree-badge badge-tree">✅ Tree</span>`;
+
+      card.innerHTML = `
+        <div class="tree-header" onclick="toggleTree(${i})">
+          <div class="tree-root-tag ${isCycle ? 'root-cycle' : 'root-normal'}">${h.root}</div>
+          <div class="tree-meta">
+            <h3>Root: <strong>${h.root}</strong></h3>
+            <p>${isCycle ? 'Pure cycle — no valid tree structure' : `Tree with depth ${h.depth}`}</p>
+          </div>
+          <div>${typeBadge}${depthBadge}</div>
+        </div>
+        <div class="tree-body" id="tree-body-${i}">
+          ${isCycle
+            ? `<div style="color:var(--red);font-size:0.88rem">🔄 Cycle detected. All nodes in this group form a loop — no tree can be built.</div>`
+            : `<div class="ascii-tree">${buildAscii(h.root, h.tree[h.root] || {}, '', true)}</div>`
+          }
+          <button class="json-toggle" onclick="toggleJson(${i}, event)">Show raw JSON</button>
+          <pre class="json-raw" id="json-raw-${i}">${JSON.stringify(h, null, 2)}</pre>
+        </div>
+      `;
+      hWrap.appendChild(card);
+    });
+
+    // Invalid entries
+    const invWrap = document.getElementById('invalidWrap');
+    invWrap.innerHTML = json.invalid_entries.length
+      ? json.invalid_entries.map(e => `<span class="tag tag-invalid">${e === '' ? '(empty)' : e}</span>`).join('')
+      : '<span class="tag-none">None ✓</span>';
+
+    // Duplicates
+    const dupWrap = document.getElementById('dupWrap');
+    dupWrap.innerHTML = json.duplicate_edges.length
+      ? json.duplicate_edges.map(e => `<span class="tag tag-dup">${e}</span>`).join('')
+      : '<span class="tag-none">None ✓</span>';
+
+    // Full JSON
+    document.getElementById('fullJson').textContent = JSON.stringify(json, null, 2);
+
+    document.getElementById('results').style.display = 'block';
+  }
+
+  // Build ASCII tree lines
+  function buildAscii(node, children, prefix, isLast) {
+    const connector = isLast ? '└── ' : '├── ';
+    const childPrefix = isLast ? '    ' : '│   ';
+    let lines = `<span class="branch">${prefix}${prefix ? connector : ''}</span><span class="node">${node}</span>\n`;
+
+    const keys = Object.keys(children);
+    keys.forEach((child, idx) => {
+      const last = idx === keys.length - 1;
+      lines += buildAscii(child, children[child], prefix + (prefix ? childPrefix : ''), last);
+    });
+    return lines;
+  }
+
+  function toggleTree(i) {
+    const body = document.getElementById(`tree-body-${i}`);
+    body.classList.toggle('open');
+  }
+
+  function toggleJson(i, e) {
+    e.stopPropagation();
+    const pre = document.getElementById(`json-raw-${i}`);
+    pre.classList.toggle('open');
+    e.target.textContent = pre.classList.contains('open') ? 'Hide raw JSON' : 'Show raw JSON';
+  }
+
+  function toggleRaw() {
+    document.getElementById('fullJson').classList.toggle('open');
+  }
+
+  function setLoading(on) {
+    document.getElementById('loading').style.display = on ? 'block' : 'none';
+    document.getElementById('submitBtn').disabled = on;
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorBox');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function hideError() {
+    document.getElementById('errorBox').style.display = 'none';
+  }
+
+  function clearAll() {
+    document.getElementById('inputArea').value = '';
+    document.getElementById('results').style.display = 'none';
+    hideError();
+  }
+</script>
+</body>
+</html>
